@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>ClientServer</title>
+	<script language="javascript" type="text/javascript" src="jquery.js"></script>
+  	<script language="javascript" type="text/javascript" src="jquery.flot.js"></script>
+	<script type="text/javascript">
+        var ws = new WebSocket("ws://localhost:9000/"); 
+//         ws.send('Thx')
+        
+        ws.onclose = function (e) {
+          document.getElementsByClassName("heart")[0].style.animation=""
+          console.log("Connection Closed")
+        }
+        ws.onmessage = function (e) {
+            console.log("Acquisition has begun");
+
+
+            data = JSON.parse(e.data);
+            
+//             console.log(data);
+            if (data.A1 != undefined) {
+              a1Values = data.A1[0];
+
+              document.getElementById("placeholder").setAttribute("value", a1Values);
+              document.getElementsByClassName("heart")[0].style.opacity = (a1Values/1024) + "";
+
+              ch1 = 'A1';
+              var d1 = []
+              for (var i = 0; i < data[ch1].length; i += 1){
+                t = data[ch1][i];
+                d1.push([i, t]);
+              } 
+            }
+
+        	$.plot($("#graph"), [ d1 ], {yaxis: {min:0, max: 1024}});
+        }
+        window.onbeforeunload = function() {
+            ws.onclose = function () {};
+            ws.close()
+        };      
+
+    </script>
+
+   	<script type="text/javascript">
+   		 function loadGraph(){
+            $.plot($("#graph"), [0], {xaxis: {min:0, max:101}, yaxis: {min:0, max: 1024}});
+        }
+   	</script>
+</head>
+<body onload="loadGraph()">
+
+	  <div>
+        <img src="heart.png" id="placeholder" class="heart" style="width: 20em; margin-left: 9em;"> 
+    </div>
+
+	  <div id="graph" style="width:600px;height:200px;"></div>
+
+</body>
+</html>
