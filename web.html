@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Opisense </title>
+        <script language="javascript" type="text/javascript" src="jquery.js"></script>
+        <script language="javascript" type="text/javascript" src="jquery.flot.js"></script> 
+    <script type="text/javascript">
+        var ws = new WebSocket("ws://localhost:9000/");       
+        ws.onclose = function (e) {
+          console.log("Connection Closed");
+        }
+        ws.onmessage = function (e) {
+            console.log("Got that data.");
+            data = JSON.parse(e.data);
+            var ch1 = [];
+            var ch2 = [];
+            var ch3 = [];
+            var ch4 = [];
+//          Extraction loop.
+            for (var i = 0; i<5000; i+=1){
+                ch1.push([i,data['channel_1_raw'][i]]);
+                ch2.push([i,data['channel_2_raw'][i]]);
+                ch3.push([i,data['channel_3_raw'][i]]);
+                ch4.push([i,data['channel_4_raw'][i]]);                
+            }
+            $.plot($("#graphCh1"), [ch1], {yaxis: {min:0, max: 1024}});
+            $.plot($("#graphCh2"), [ch2], {yaxis: {min:0, max: 1024}});
+            $.plot($("#graphCh3"), [ch3], {yaxis: {min:0, max: 1024}});
+            $.plot($("#graphCh4"), [ch4], {yaxis: {min:0, max: 1024}});
+        }
+        window.onbeforeunload = function() {
+            ws.onclose = function () {};
+            ws.close();
+        };
+    </script>
+    <script type="text/javascript">
+        function loadGraph(){
+            $.plot($("#graphCh1"), [0], {xaxis: {min:0, max:101}, yaxis: {min:0, max: 1024}});
+            $.plot($("#graphCh2"), [0], {xaxis: {min:0, max:101}, yaxis: {min:0, max: 1024}});
+            $.plot($("#graphCh3"), [0], {xaxis: {min:0, max:101}, yaxis: {min:0, max: 1024}});
+            $.plot($("#graphCh4"), [0], {xaxis: {min:0, max:101}, yaxis: {min:0, max: 1024}});
+        }
+   	</script>
+</head>
+<body onload="loadGraph()">
+    <div id="graphCh1" style="width:600px;height:200px;"></div>
+    <div id="graphCh2" style="width:600px;height:200px;"></div>
+    <div id="graphCh3" style="width:600px;height:200px;"></div>
+    <div id="graphCh4" style="width:600px;height:200px;"></div>
+</body>
+</html>

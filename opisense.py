@@ -1,6 +1,5 @@
 # Standard Library
 import time
-import sched
 import json
 import bluetooth
 import socket
@@ -14,11 +13,11 @@ import numpy as np
 import pandas as pd
 
 from bitalino import BITalino
-
+from bitalino import find
 
 class Opisense:
     
-1    def __init__(self):
+    def __init__(self):
         #TODO Implement a failure to connect condition.
         
         #sudo hciconfig hci0 reset
@@ -41,16 +40,16 @@ class Opisense:
         """Channels to acquire data from."""
         self._acqChannels = [0,1,2,3]
         
-        self._readSched = sched.scheduler(time.time, time.sleep)
+        """Initialize read status."""
+        self._canRead = False
 
-    def find_devices(self):
+    def find_devices(self)->list:
         """Search for nearby BITalino devices and return the MAC address of those found."""
-        localBITalinoMACs = [device[0] for device in bitalino.find() if 'BITalino' in device[1]]
+        localBITalinoMACs = [device[0] for device in find() if 'BITalino' in device[1]]
         return localBITalinoMACs
     
-    def __connect_bitalino(self):
+    def __connect_bitalino(self)->bool:
         """Attempt to establish a connection w/ the BITalion hardware."""
-        
         try:
             self._device = BITalino(macAddress = '98:D3:41:FD:4F:D9')
             #self._device = BITalino(macAddress=self._macAddress)
@@ -59,45 +58,49 @@ class Opisense:
             print('Error in establishing device connection. Trying again.')
             return False
         
-    
-    def __start(self):
+    def start(self)->None:
         """Start data collection by the device using the defined parameters."""
-        self.device.start(
-            SamplingRate = self._samplingRate,
+        self._canRead = True
+        self._device.start(
+            SamplingRate = self._sampleRate,
             analogChannels = self._acqChannels
         )
     
-    def __stop(self):
+    def stop(self)->None:
         """Stops data collection by the device."""
-        self.device.stop()
-    
-    def record(self,duration):
-        """Record device data for the provided duration (seconds)."""
-        self.__stop()
-        self.__start()
-        self.__reset()
-        
-        # Enter the first read into the scheduler.
-        self._readSched.enter(5,1,read_function,kwargs = {'duration':duration})
-        # Run the scheduler.
-        self._readSched.run()
+        self._canRead = False
+        self._device.stop()
 
     def __reset(self):
         """Initialize the instance variables for data recording."""
-        self._readData = pd.DataFrame(columns = ['tpm','resp','pulse','eda'])
-        self._recordingTime = 0
+        pass
     
-    def __read_data(self,duration):
-        data = self._device.read(5000)[:,5:8]
-        tempRec = pd.DataFrame(data,columns = ['tpm','resp','pulse','eda'])
-        self._readData = self._readData.append(tempRec)
-        # Determine if there is time remaing to record.
-        if self._recordingTime<duration:
-            # There is time remaing; continue to record.
-            print('Reading data.')
-            self._readSched.enter(5,1,read_function,kwargs = {'duration':duration})
-            self._recordingTime += 5
+    def read_data(self)->pd.DataFrame:
+        """Reads data off of the device in 5.0s windows and casts it as a dataframe."""
+        if self._canRead:
+            rawData = self._device.read(5000)
+            rawCol = ['channel_1_raw','channel_2_raw','channel_3_raw','channel_4_raw']
+            df= pd.DataFrame(columns = rawCol)
+            df.channel_1_raw = rawData[:,5]
+            df.channel_2_raw = rawData[:,6]
+            df.channel_3_raw = rawData[:,7]
+            df.channel_4_raw = rawData[:,8]
+            #print(time.strftime("%H:%M:%S", time.localtime()))
+            df['time'] = time.strftime("%H:%M:%S", time.localtime())
+            #df.set_index('time',inplace=True)
+            #print(df.head())
+            return df
         else:
-            # There is no time remaing; stop recording and save the recorded data.
-            print('Finished reading, saving date.')
-            self._record.to_csv('OpisenseData_'+time.strftime("%d_%b_%Y_%H:%M:%S", time.gmtime())+'.csv')
+            print(f'Device must be started.')
+            
+if __name__ == '__main__':
+    exOpi = Opisense()
+    print(f'Nearby devices: {exOpi.find_devices()}')
+    print(f'Beginning recording...\n')
+    exOpi.start()
+    time.sleep(5)
+    exOpi.read_data()
+    time.sleep(10)
+    exOpi.read_data()
+    print(f'Ending recording...\n')
+    exOpi.stop()
