@@ -22,7 +22,7 @@
                 ch2.push([i,data['channel_2_raw'][i]]);
                 ch3.push([i,data['channel_3_raw'][i]]);
                 ch4.push([i,data['channel_4_raw'][i]]);                
-            }
+            };
             $.plot($("#graphCh1"), [ch1], {yaxis: {min:0, max: 40}});
             $.plot($("#graphCh2"), [ch2], {yaxis: {min:-25, max: 25}});
             $.plot($("#graphCh3"), [ch3], {yaxis: {min:0, max: 1024}});

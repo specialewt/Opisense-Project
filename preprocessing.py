@@ -4,6 +4,8 @@ import heartpy as hp
 import sys
 import os
 
+#Opisense Alg
+from opisense_alg import OpisenseAlg
 
 def get_data_from_file(fileName:str):
     """Reads and strips the designated raw data file."""
@@ -19,10 +21,10 @@ def heart_rate_extraction(rawHR:np.ndarray)->float:
         filtHR = hp.enhance_peaks(filtHR)
         filtHR = hp.scale_data(filtHR,0,1)
         wd,m = hp.process(filtHR,1000)
-        return float(m['bpm'])
+        return int(m['bpm']),int(float(m['breathingrate'])*60)
     except:
         print(f'\nUnable to find HR; ({np.mean(rawHR)})')
-        return 0.0
+        return 0.0,0.0
     
 def windowed_reduction(rawData:np.ndarray)->pd.DataFrame:
     """Reduces the passed data."""
@@ -45,10 +47,8 @@ def NTCconv(x):
     a0 = 1.12764514*10**-3
     a1 = 2.34282709*10**-4
     a2 = 8.77303013*10**-8
-    
     tmp_k = (a0+a1*np.log(ntc_o)+a2*(np.log(ntc_o)**3))**-1
     tmp_c = tmp_k - 273.15
-    
     return tmp_c
     
 def process_raw_data(rawData:np.ndarray)->pd.DataFrame:
@@ -60,7 +60,9 @@ def process_raw_data(rawData:np.ndarray)->pd.DataFrame:
     y = 10000
     while x<lenRaw:
         wrData = windowed_reduction(rawData[:x,:])
-        wrData['HR'] = heart_rate_extraction(rawData[(y-10000):y,2])
+        hre = heart_rate_extraction(rawData[(y-10000):y,2])
+        wrData['HR'] = hre[0]
+        wrData['RESP'] = hre[1]
         processedData = processedData.append(wrData)
         print(f'\r [{x/lenRaw*100}%]', end='')
         sys.stdout.flush()
@@ -76,9 +78,11 @@ def process_raw_data(rawData:np.ndarray)->pd.DataFrame:
         
 def get_labels(fileName:str)->dict:
     """Extracts labels from filename."""
+    print('\n')
     #print(fileName)
     tempLabels = fileName.split('_')
-    finalLabels = {'subject':tempLabels[0],'state':tempLabels[1][:(len(tempLabels)-6)]}
+    #print(tempLabels)
+    finalLabels = {'subject':tempLabels[0],'state':tempLabels[1].replace('.txt','')}
     #print(finalLabels)
     return finalLabels
 
@@ -95,12 +99,14 @@ def get_filenames(folderPath:str)->list:
     return fileList
 
 def make_processed_filename(fileName:str)->str:
+    """Creates the processed filename from the original."""
     comps = fileName.split('.')
     proFN = comps[0]+'_processed.csv'
     #print(proFN)
     return proFN
 
 def setup_processed_directory(rawDataPath)->None:
+    """File management."""
     os.chdir(rawDataPath)
     os.makedirs("Processed Data", exist_ok = True)
     os.chdir(os.path.join(rawDataPath,"Processed Data"))
@@ -115,6 +121,7 @@ def preprocessing_main(rawDataPath:str)->None:
         # Make processed filename.
         proFileName = make_processed_filename(fileName)
         # Add labels to the processed data.
+        proData['alg_state'] = proData.apply(OpisenseAlg().determine_state,axis=1)
         labels = get_labels(fileName)
         proData['subject'] = labels['subject']
         proData['state'] = labels['state']
